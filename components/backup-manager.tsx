@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +49,51 @@ export function BackupManager() {
   );
   const [failedDownloads, setFailedDownloads] = useState<FailedDownload[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true);
+
+  useEffect(() => {
+    // Wait for ScrollArea to be mounted
+    const timer = setTimeout(() => {
+      const scrollViewport = scrollAreaRef.current?.querySelector(
+        '[data-slot="scroll-area-viewport"]'
+      );
+
+      if (!scrollViewport) return;
+
+      const handleScroll = () => {
+        const { scrollTop, scrollHeight, clientHeight } = scrollViewport;
+        const threshold = 10;
+        const isAtBottom = scrollHeight - scrollTop - clientHeight < threshold;
+        isAtBottomRef.current = isAtBottom;
+        console.log("Scroll position:", {
+          scrollTop,
+          scrollHeight,
+          clientHeight,
+          isAtBottom,
+        });
+      };
+
+      // Set initial state
+      handleScroll();
+
+      scrollViewport.addEventListener("scroll", handleScroll);
+      return () => scrollViewport.removeEventListener("scroll", handleScroll);
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [events.length > 0]);
+
+  useEffect(() => {
+    if (events.length > 0 && isAtBottomRef.current) {
+      const scrollViewport = scrollAreaRef.current?.querySelector(
+        '[data-slot="scroll-area-viewport"]'
+      );
+      if (scrollViewport) {
+        scrollViewport.scrollTop = scrollViewport.scrollHeight;
+      }
+    }
+  }, [events]);
 
   const downloadArchive = (archiveIdToDownload: string) => {
     setIsDownloading(true);
@@ -343,7 +388,7 @@ export function BackupManager() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[400px] pr-4">
+                <ScrollArea ref={scrollAreaRef} className="h-[400px] pr-4">
                   <div className="space-y-2 font-mono text-xs">
                     {events.map((event, index) => (
                       <div
