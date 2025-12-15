@@ -38,6 +38,17 @@ export function BackupManager() {
   const [tenantIds, setTenantIds] = useState("tenant1");
   const [toSchema, setToSchema] = useState("my_backup");
   const [password, setPassword] = useState("xxx");
+  const [dbHost, setDbHost] = useState("172.23.224.1");
+  const [dbPort, setDbPort] = useState("5433");
+  const [dbName, setDbName] = useState("teste_postgres");
+  const [dbUser, setDbUser] = useState("postgres");
+  const [dbPassword, setDbPassword] = useState("postgres");
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [connectionTestResult, setConnectionTestResult] = useState<{
+    status: "success" | "error";
+    message: string;
+    error?: string;
+  } | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [events, setEvents] = useState<StreamEvent[]>([]);
   const [archiveId, setArchiveId] = useState<string | null>(null);
@@ -125,6 +136,35 @@ export function BackupManager() {
     downloadArchive(archiveIdToDownload);
   };
 
+  const testConnection = async () => {
+    setIsTestingConnection(true);
+    setConnectionTestResult(null);
+
+    try {
+      const result = await BackupService.testDbConnection({
+        dbHost,
+        dbPort: parseInt(dbPort),
+        dbName,
+        dbUser,
+        dbPassword,
+      });
+
+      setConnectionTestResult({
+        status: result.status,
+        message: result.message,
+        error: result.error,
+      });
+    } catch (error) {
+      setConnectionTestResult({
+        status: "error",
+        message: "Erro ao testar conexão",
+        error: error instanceof Error ? error.message : "Erro desconhecido",
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
   const startBackup = async () => {
     setIsStreaming(true);
     setEvents([]);
@@ -147,6 +187,11 @@ export function BackupManager() {
           tenantIds: tenantIdArray,
           toSchema,
           password,
+          dbHost,
+          dbPort: parseInt(dbPort),
+          dbName,
+          dbUser,
+          dbPassword,
         },
         abortControllerRef.current.signal
       );
@@ -296,11 +341,148 @@ export function BackupManager() {
                   className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
                 />
               </div>
+
+              <div className="border-t border-zinc-700 pt-4 mt-4">
+                <h3 className="text-lg font-semibold text-zinc-200 mb-3">
+                  Configuração do Banco de Dados
+                </h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="dbHost" className="text-zinc-200">
+                      Host do Banco
+                    </Label>
+                    <Input
+                      id="dbHost"
+                      placeholder="172.23.224.1"
+                      value={dbHost}
+                      onChange={(e) => setDbHost(e.target.value)}
+                      disabled={isStreaming}
+                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="dbPort" className="text-zinc-200">
+                      Porta
+                    </Label>
+                    <Input
+                      id="dbPort"
+                      type="number"
+                      placeholder="5433"
+                      value={dbPort}
+                      onChange={(e) => setDbPort(e.target.value)}
+                      disabled={isStreaming}
+                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="dbName" className="text-zinc-200">
+                      Nome do Banco
+                    </Label>
+                    <Input
+                      id="dbName"
+                      placeholder="teste_postgres"
+                      value={dbName}
+                      onChange={(e) => setDbName(e.target.value)}
+                      disabled={isStreaming}
+                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="dbUser" className="text-zinc-200">
+                      Usuário
+                    </Label>
+                    <Input
+                      id="dbUser"
+                      placeholder="postgres"
+                      value={dbUser}
+                      onChange={(e) => setDbUser(e.target.value)}
+                      disabled={isStreaming}
+                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="dbPassword" className="text-zinc-200">
+                      Senha do Banco
+                    </Label>
+                    <Input
+                      id="dbPassword"
+                      type="password"
+                      placeholder="Digite a senha do banco de dados"
+                      value={dbPassword}
+                      onChange={(e) => setDbPassword(e.target.value)}
+                      disabled={isStreaming}
+                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                    />
+                  </div>
+                  <div className="space-y-2 items-end w-full flex">
+                    <Button
+                      onClick={testConnection}
+                      disabled={
+                        isTestingConnection ||
+                        isStreaming ||
+                        !dbHost ||
+                        !dbPort ||
+                        !dbName ||
+                        !dbUser ||
+                        !dbPassword
+                      }
+                      className="w-full bg-zinc-800 hover:bg-zinc-700 text-white border-zinc-700"
+                    >
+                      {isTestingConnection ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                      )}
+                      Testar Conexão
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-col gap-3">
+                  {connectionTestResult && (
+                    <div
+                      className={`p-3 rounded-lg border ${
+                        connectionTestResult.status === "success"
+                          ? "bg-green-950/50 border-green-800 text-green-400"
+                          : "bg-red-950/50 border-red-800 text-red-400"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        {connectionTestResult.status === "success" ? (
+                          <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
+                        ) : (
+                          <XCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                        )}
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">
+                            {connectionTestResult.message}
+                          </p>
+                          {connectionTestResult.error && (
+                            <p className="text-xs mt-1 opacity-90">
+                              {connectionTestResult.error}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="flex gap-3">
                 {!isStreaming ? (
                   <Button
                     onClick={startBackup}
-                    disabled={!tenantIds || !toSchema || !password}
+                    disabled={
+                      !tenantIds ||
+                      !toSchema ||
+                      !password ||
+                      !dbHost ||
+                      !dbPort ||
+                      !dbName ||
+                      !dbUser ||
+                      !dbPassword
+                    }
                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     Iniciar Backup

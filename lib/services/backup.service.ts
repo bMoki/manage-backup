@@ -4,12 +4,38 @@ export interface BackupRequest {
   tenantIds: string[];
   toSchema: string;
   password: string;
+  dbHost: string;
+  dbPort: number;
+  dbName: string;
+  dbUser: string;
+  dbPassword: string;
 }
 
 export interface DownloadParams {
   archiveId: string;
   password: string;
   fileName: string;
+}
+
+export interface DbConfig {
+  dbHost: string;
+  dbPort: number;
+  dbName: string;
+  dbUser: string;
+  dbPassword: string;
+}
+
+export interface DbTestResponse {
+  status: "success" | "error";
+  message: string;
+  error?: string;
+  database: {
+    host: string;
+    port: number;
+    database: string;
+    user: string;
+  };
+  timestamp: string;
 }
 
 export class BackupService {
@@ -98,5 +124,24 @@ export class BackupService {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  }
+
+  /**
+   * Testa a conexão com o banco de dados
+   */
+  static async testDbConnection(config: DbConfig): Promise<DbTestResponse> {
+    const response = await fetch("http://localhost:3000/test-db", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(config),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
   }
 }
