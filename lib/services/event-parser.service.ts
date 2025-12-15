@@ -16,7 +16,7 @@ export class EventParserService {
   /**
    * Extrai o Archive ID de um evento de log
    */
-  static extractArchiveId(event: StreamEvent): string | null {
+  static extractArchiveId(event: StreamEvent): string | null | undefined {
     if (event.type === "log" && event.message.includes("Archive ID:")) {
       const match = event.message.match(/Archive ID: ([\w-]+)/);
       return match ? match[1] : null;
